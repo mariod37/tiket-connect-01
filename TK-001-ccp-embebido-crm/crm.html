@@ -37,6 +37,14 @@
   #btnToggle:hover { background: #e68a00; }
   #etiquetaVersion { font-size: 13px; color: #444; }
 
+  /* Rótulo visible arriba del panel: indica qué versión se está viendo
+     (útil para que las capturas de pantalla se expliquen solas) */
+  #rotulo { width: 400px; padding: 6px 10px; margin-bottom: 6px; border-radius: 4px; color: #fff; font-size: 13px; font-weight: bold; }
+  #rotulo.versionA { background: #c0392b; }   /* rojo: versión A (iframe directo) */
+  #rotulo.versionB { background: #1e8449; }   /* verde: versión B (Streams) */
+  #panelA { border: 3px solid #c0392b; }
+  #panelB { border: 3px solid #1e8449; }
+
   /* Panel de 400x600 donde va el CCP */
   .panel-ccp { width: 400px; height: 600px; background: #fff; border: 1px solid #aab; border-radius: 6px; overflow: hidden; position: relative; }
   .panel-ccp iframe { width: 100%; height: 100%; border: 0; }
@@ -75,16 +83,19 @@
 
     <div class="controles">
       <button id="btnToggle" type="button">Cambiar a versión B (Streams)</button>
-      <span id="etiquetaVersion">Mostrando: versión A (iframe directo, falla)</span>
+      <span id="etiquetaVersion">Mostrando: versión A (iframe directo)</span>
     </div>
 
+    <!-- Rótulo visible: cambia de color y de texto según la versión -->
+    <div id="rotulo" class="versionA">VERSIÓN A · iframe directo</div>
+
     <!-- ========================================================
-         VERSIÓN A (LA QUE FALLA)
-         iframe puesto directo con el ccp-v2. AWS responde con
-         X-Frame-Options: sameorigin, por lo que el navegador
-         bloquea la carga y en la consola aparece:
-         "Refused to display ... in a frame because it set
-          'X-Frame-Options' to 'sameorigin'".
+         VERSIÓN A (iframe directo)
+         iframe puesto directo con el ccp-v2. Si el origen de este CRM
+         NO está aprobado en la instancia (o la URL está mal armada),
+         el navegador bloquea la carga y en la consola aparece un error
+         como "Refused to display ... X-Frame-Options" o
+         "Framing ... violates ... frame-ancestors 'self'".
          >>> REEMPLAZAR "REEMPLAZAR-INSTANCIA" por el alias de tu
              instancia de Amazon Connect (ej: mi-empresa). <<<
          ======================================================== -->
@@ -93,7 +104,7 @@
     </div>
 
     <!-- ========================================================
-         VERSIÓN B (LA CORRECTA)
+         VERSIÓN B (con Amazon Connect Streams)
          Oculta por defecto. Streams crea el iframe adentro de este
          div mediante connect.core.initCCP().
          ======================================================== -->
@@ -125,6 +136,7 @@
   // Referencias al DOM
   var btnToggle = document.getElementById("btnToggle");
   var etiqueta  = document.getElementById("etiquetaVersion");
+  var rotulo    = document.getElementById("rotulo");   // rótulo de color arriba del panel
   var panelA    = document.getElementById("panelA");
   var panelB    = document.getElementById("panelB");
   var cuadro    = document.getElementById("estado");
@@ -224,13 +236,17 @@
       panelA.style.display = "block";
       panelB.style.display = "none";
       btnToggle.textContent = "Cambiar a versión B (Streams)";
-      etiqueta.textContent = "Mostrando: versión A (iframe directo, falla)";
+      etiqueta.textContent = "Mostrando: versión A (iframe directo)";
+      rotulo.textContent = "VERSIÓN A · iframe directo";
+      rotulo.className = "versionA";
       log("Mostrando versión A.");
     } else {
       panelA.style.display = "none";
       panelB.style.display = "block";
       btnToggle.textContent = "Cambiar a versión A (iframe)";
       etiqueta.textContent = "Mostrando: versión B (amazon-connect-streams)";
+      rotulo.textContent = "VERSIÓN B · Amazon Connect Streams";
+      rotulo.className = "versionB";
       log("Mostrando versión B.");
       if (!ccpIniciado) { iniciarCCP(); }   // Streams se inicializa solo la primera vez
     }
