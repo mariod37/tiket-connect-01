@@ -47,7 +47,7 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 3. Levanté el servidor local en el puerto 8000.
 4. Creé la instancia de Amazon Connect (usuarios almacenados en Connect, administrador, telefonía entrante y saliente; sin Customer Profiles ni Cases).
 5. Reemplacé `REEMPLAZAR-INSTANCIA` por el alias en el iframe y en `CCP_URL`.
-6. **Reproducción:** con el origen sin aprobar, la versión A muestra el bloqueo `frame-ancestors 'self'` / `X-Frame-Options` en la consola.
+6. **Error observado:** la versión A mostró en la consola el bloqueo `frame-ancestors 'self'`. **Aclaración importante:** ese error lo vi con el iframe apuntando a la raíz del sitio de Connect (sin `/ccp-v2`), y no llegué a reproducirlo con la URL correcta y el origen sin aprobar, que es el caso exacto del ticket. Ver *Evidencia* y *Alcance de la prueba*.
 7. **Solución:** agregué `http://localhost:8000` en *Orígenes aprobados* de la instancia. Con solo eso el CCP cargó dentro del CRM tanto con el iframe directo (A) como con Streams (B), **con la sesión de Connect ya iniciada en el navegador** (el popup de Streams me llevó directo a un panel de Connect, sin pedirme usuario ni contraseña). Streams (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`) es la integración recomendada porque maneja el login y la comunicación entre el CCP y el CRM.
 
 ## Solución de problemas: tres errores de configuración que aparecieron
@@ -56,14 +56,46 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 |---|---|
 | Alias sin reemplazar (`REEMPLAZAR-INSTANCIA` en `CCP_URL`) | El popup de login mostraba `DNS_PROBE_FINISHED_NXDOMAIN`. |
 | Ruta incompleta (URL sin `/ccp-v2`) | El iframe iba a la página principal de Connect (`/home`), con el bloqueo `frame-ancestors 'self'`. Se parece al error del ticket, pero la causa no es el permiso. |
-| Origen sin aprobar | El bloqueo del ticket, con la URL correcta. |
+| Origen sin aprobar | Es la causa que describe el ticket y la que respalda la documentación de AWS (ver más abajo). **No la reproduje** con la URL correcta y el origen sin aprobar. |
 
 Los dos primeros imitan o tapan al tercero: si la URL está mal, aprobar el origen no arregla nada. Orden de diagnóstico: primero verificar que la URL tenga el alias real y termine en `/ccp-v2` (abrirla a mano en una pestaña); si anda sola pero no dentro del CRM, revisar el origen aprobado.
 
 ## Alcance de la prueba
 
 - **Comprobado:** el CCP carga dentro del CRM una vez aprobado el origen (versiones A y B), y Streams abre el popup de login.
-- **No comprobado:** el login desde cero (la ventana pidiendo usuario y contraseña con la sesión cerrada) ni las funciones de Streams para reaccionar a llamadas (ficha emergente, aceptar o marcar desde el CRM). Streams las habilita, pero no las probé.
+- **No comprobado:** el bloqueo con la URL correcta (`/ccp-v2`) y el origen sin aprobar; el login desde cero (la ventana pidiendo usuario y contraseña con la sesión cerrada); ni las funciones de Streams para reaccionar a llamadas (ficha emergente, aceptar o marcar desde el CRM). Streams las habilita, pero no las probé.
+
+## Evidencia de la prueba (texto copiado tal cual de mi consola y de la herramienta)
+
+No conservé capturas de pantalla de la instancia (se eliminó al terminar). Esto es el texto que copié durante la prueba, en el orden en que ocurrió:
+
+1. **Cuadro de estado, primera carga de la versión B (el archivo de Streams todavía no se encontraba):**
+   ```
+   [22:51:04] Mostrando versión B.
+   [22:51:04] ERROR: no se cargó amazon-connect-streams.min.js. Verificá que esté subido junto al HTML y que el nombre coincida.
+   ```
+2. **Consola, versión A, con el iframe apuntando a la raíz del sitio de Connect (sin `/ccp-v2`):**
+   ```
+   Framing 'https://conecta-test.my.connect.aws/' violates the following Content Security Policy directive: "frame-ancestors 'self'". The request has been blocked.
+   ```
+3. **Consola, versión B (misma URL incorrecta) con los avisos de Streams:**
+   ```
+   [WARN] [null]: ACK_TIMEOUT occurred. Attempting to authenticate.
+   [WARN] [null]: Attempting to pop the login page if not already open.
+   ```
+4. **Popup de login con el alias sin reemplazar en `CCP_URL`:**
+   ```
+   https://reemplazar-instancia.my.connect.aws/ccp-v2
+   DNS_PROBE_FINISHED_NXDOMAIN
+   ```
+5. **Pestaña Network del navegador, versión A:** la petición del iframe (`crm.html:92`) devolvió un `302` que terminó en `.../home` con estado `(blocked:other)`. Esa petición iba a la raíz del sitio, no a `/ccp-v2`.
+6. **Cuadro de estado, versión B, después de corregir el alias pero antes de corregir la ruta:**
+   ```
+   [23:26:10] Mostrando versión B.
+   [23:26:10] initCCP ejecutado. Esperando respuesta del CCP...
+   [23:26:25] AVISO: pasaron 15 s sin inicializar. Revisá: 1) origen aprobado en Amazon Connect, 2) HTTPS, 3) popup bloqueado por el navegador.
+   ```
+7. **Resultado final:** después de corregir la URL a `https://conecta-test.my.connect.aws/ccp-v2`, con el origen `http://localhost:8000` aprobado, el CCP apareció dentro del CRM en las dos versiones. Esto lo constaté a ojo y no tengo texto de consola ni captura de ese momento.
 
 ## Respaldo en la documentación oficial
 
