@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM Conecta Company - Prueba CCP</title>
+
+<!-- ============================================================
+     ESTILOS
+     Diseño simple de CRM: barra superior, lista de clientes a la
+     izquierda y panel de 400x600 px para el CCP a la derecha.
+     ============================================================ -->
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f2f4f7; color: #222; }
+
+  /* Barra superior */
+  .topbar { background: #232f3e; color: #fff; padding: 14px 24px; font-size: 18px; font-weight: bold; }
+
+  /* Layout principal: lista a la izquierda, CCP a la derecha */
+  .main { display: flex; gap: 24px; padding: 24px; align-items: flex-start; }
+
+  /* Lista de clientes */
+  .clientes { flex: 1; background: #fff; border: 1px solid #d5d9de; border-radius: 6px; min-width: 260px; }
+  .clientes h2 { margin: 0; padding: 14px 16px; font-size: 16px; border-bottom: 1px solid #e3e6ea; }
+  .cliente { padding: 12px 16px; border-bottom: 1px solid #eef0f3; cursor: pointer; }
+  .cliente:last-child { border-bottom: none; }
+  .cliente:hover { background: #f6f9fc; }
+  .cliente.activo { background: #e8f1fb; }
+  .cliente .nombre { font-weight: bold; }
+  .cliente .datos { font-size: 13px; color: #666; margin-top: 2px; }
+
+  /* Columna derecha: controles + panel CCP */
+  .derecha { width: 400px; }
+  .controles { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
+  #btnToggle { background: #ff9900; border: none; padding: 9px 14px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+  #btnToggle:hover { background: #e68a00; }
+  #etiquetaVersion { font-size: 13px; color: #444; }
+
+  /* Panel de 400x600 donde va el CCP */
+  .panel-ccp { width: 400px; height: 600px; background: #fff; border: 1px solid #aab; border-radius: 6px; overflow: hidden; position: relative; }
+  .panel-ccp iframe { width: 100%; height: 100%; border: 0; }
+
+  /* Versión B oculta por defecto */
+  #panelB { display: none; }
+
+  /* Cuadro de estado */
+  .estado { margin-top: 10px; width: 400px; height: 120px; resize: vertical; font-family: Consolas, monospace; font-size: 12px;
+            background: #111; color: #9fef9f; border: 1px solid #333; border-radius: 4px; padding: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     BARRA SUPERIOR
+     ============================================================ -->
+<div class="topbar">CRM Conecta Company</div>
+
+<div class="main">
+
+  <!-- ==========================================================
+       LISTA DE 3 CLIENTES DE EJEMPLO
+       ========================================================== -->
+  <section class="clientes">
+    <h2>Clientes</h2>
+    <div class="cliente"><div class="nombre">Ana García</div><div class="datos">+54 223 555-0101 · ana@ejemplo.com</div></div>
+    <div class="cliente"><div class="nombre">Carlos Pérez</div><div class="datos">+54 223 555-0102 · carlos@ejemplo.com</div></div>
+    <div class="cliente"><div class="nombre">Lucía Fernández</div><div class="datos">+54 223 555-0103 · lucia@ejemplo.com</div></div>
+  </section>
+
+  <!-- ==========================================================
+       COLUMNA DERECHA: botón de alternancia + paneles A / B + estado
+       ========================================================== -->
+  <section class="derecha">
+
+    <div class="controles">
+      <button id="btnToggle" type="button">Cambiar a versión B (Streams)</button>
+      <span id="etiquetaVersion">Mostrando: versión A (iframe directo, falla)</span>
+    </div>
+
+    <!-- ========================================================
+         VERSIÓN A (LA QUE FALLA)
+         iframe puesto directo con el ccp-v2. AWS responde con
+         X-Frame-Options: sameorigin, por lo que el navegador
+         bloquea la carga y en la consola aparece:
+         "Refused to display ... in a frame because it set
+          'X-Frame-Options' to 'sameorigin'".
+         >>> REEMPLAZAR "REEMPLAZAR-INSTANCIA" por el alias de tu
+             instancia de Amazon Connect (ej: mi-empresa). <<<
+         ======================================================== -->
+    <div id="panelA" class="panel-ccp">
+      <iframe id="iframeA" src="https://REEMPLAZAR-INSTANCIA.my.connect.aws/ccp-v2"></iframe>
+    </div>
+
+    <!-- ========================================================
+         VERSIÓN B (LA CORRECTA)
+         Oculta por defecto. Streams crea el iframe adentro de este
+         div mediante connect.core.initCCP().
+         ======================================================== -->
+    <div id="panelB" class="panel-ccp"></div>
+
+    <!-- Cuadro de texto con mensajes de estado -->
+    <textarea id="estado" class="estado" readonly></textarea>
+  </section>
+</div>
+
+<!-- ============================================================
+     LIBRERÍA AMAZON CONNECT STREAMS
+     Descargá amazon-connect-streams.min.js del repositorio oficial
+     de AWS (github.com/amazon-connect/amazon-connect-streams) y
+     subilo al mismo bucket, junto a este HTML. No se usa CDN.
+     Si el archivo del repo tiene otro nombre, renombralo o cambiá
+     el src de abajo.
+     ============================================================ -->
+<script src="amazon-connect-streams.min.js"></script>
+
+<script>
+  // ==========================================================
+  // CONFIGURACIÓN
+  // >>> REEMPLAZAR "REEMPLAZAR-INSTANCIA" por el alias de tu
+  //     instancia de Amazon Connect. Es la misma URL de la versión A. <<<
+  // ==========================================================
+  var CCP_URL = "https://REEMPLAZAR-INSTANCIA.my.connect.aws/ccp-v2";
+
+  // Referencias al DOM
+  var btnToggle = document.getElementById("btnToggle");
+  var etiqueta  = document.getElementById("etiquetaVersion");
+  var panelA    = document.getElementById("panelA");
+  var panelB    = document.getElementById("panelB");
+  var cuadro    = document.getElementById("estado");
+
+  var mostrandoA = true;      // estado actual de la alternancia
+  var ccpIniciado = false;    // para inicializar Streams una sola vez
+
+  // ==========================================================
+  // Función para escribir mensajes en el cuadro de estado
+  // ==========================================================
+  function log(msg) {
+    var hora = new Date().toLocaleTimeString();
+    cuadro.value += "[" + hora + "] " + msg + "\n";
+    cuadro.scrollTop = cuadro.scrollHeight;
+  }
+
+  // ==========================================================
+  // Selección de cliente en la lista (solo visual, para dar
+  // contexto de CRM)
+  // ==========================================================
+  document.querySelectorAll(".cliente").forEach(function (el) {
+    el.addEventListener("click", function () {
+      document.querySelectorAll(".cliente").forEach(function (c) { c.classList.remove("activo"); });
+      el.classList.add("activo");
+      log("Cliente seleccionado: " + el.querySelector(".nombre").textContent);
+    });
+  });
+
+  // ==========================================================
+  // VERSIÓN A: el navegador no deja detectar con certeza el bloqueo
+  // por X-Frame-Options desde JS, así que se informa lo esperable.
+  // ==========================================================
+  log("Versión A cargada: iframe directo. Si está en blanco o con error, abrí la consola (F12) y buscá 'X-Frame-Options'.");
+  if (CCP_URL.indexOf("REEMPLAZAR-INSTANCIA") !== -1) {
+    log("AVISO: todavía no reemplazaste REEMPLAZAR-INSTANCIA por el alias real de tu instancia.");
+  }
+
+  // ==========================================================
+  // VERSIÓN B: inicialización de Streams
+  // ==========================================================
+  function iniciarCCP() {
+    // Si el .js no se subió o no se encontró, 'connect' no existe
+    if (typeof connect === "undefined" || !connect.core) {
+      log("ERROR: no se cargó amazon-connect-streams.min.js. Verificá que esté subido junto al HTML y que el nombre coincida.");
+      return;
+    }
+
+    try {
+      connect.core.initCCP(panelB, {
+        ccpUrl: CCP_URL,                          // URL del CCP de tu instancia
+        loginPopup: true,                         // abre un popup para iniciar sesión
+        softphone: { allowFramedSoftphone: true } // permite el softphone (audio) dentro del iframe
+      });
+      ccpIniciado = true;
+      log("initCCP ejecutado. Esperando respuesta del CCP...");
+
+      // Se dispara cuando el CCP terminó de cargar e inicializar
+      connect.core.onInitialized(function () {
+        log("OK: el CCP cargó e inicializó correctamente.");
+      });
+
+      // Se dispara si la sesión de Connect se cierra o expira
+      connect.core.onAuthFail(function () {
+        log("ERROR de autenticación: iniciá sesión en el popup o revisá el login de la instancia.");
+      });
+
+      // Cuando hay un agente disponible, informamos su nombre
+      connect.agent(function (agent) {
+        log("Agente conectado: " + agent.getName());
+      });
+
+      // Aviso si en 15 segundos no se inicializó (típico de origen no aprobado)
+      setTimeout(function () {
+        if (!document.querySelector("#panelB iframe") || !window.__ccpOk) {
+          // se marca por onInitialized; si no, avisamos una sola vez
+        }
+      }, 15000);
+      connect.core.onInitialized(function () { window.__ccpOk = true; });
+      setTimeout(function () {
+        if (!window.__ccpOk) {
+          log("AVISO: pasaron 15 s sin inicializar. Revisá: 1) origen aprobado en Amazon Connect, 2) HTTPS, 3) popup bloqueado por el navegador.");
+        }
+      }, 15000);
+
+    } catch (e) {
+      log("ERROR en initCCP: " + e.message);
+    }
+  }
+
+  // ==========================================================
+  // BOTÓN: alterna entre versión A y versión B
+  // ==========================================================
+  btnToggle.addEventListener("click", function () {
+    mostrandoA = !mostrandoA;
+
+    if (mostrandoA) {
+      panelA.style.display = "block";
+      panelB.style.display = "none";
+      btnToggle.textContent = "Cambiar a versión B (Streams)";
+      etiqueta.textContent = "Mostrando: versión A (iframe directo, falla)";
+      log("Mostrando versión A.");
+    } else {
+      panelA.style.display = "none";
+      panelB.style.display = "block";
+      btnToggle.textContent = "Cambiar a versión A (iframe)";
+      etiqueta.textContent = "Mostrando: versión B (amazon-connect-streams)";
+      log("Mostrando versión B.");
+      if (!ccpIniciado) { iniciarCCP(); }   // Streams se inicializa solo la primera vez
+    }
+  });
+</script>
+</body>
+</html>
