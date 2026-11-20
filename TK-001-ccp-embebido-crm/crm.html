@@ -106,13 +106,13 @@
 
 <!-- ============================================================
      LIBRERÍA AMAZON CONNECT STREAMS
-     Descargá amazon-connect-streams.min.js del repositorio oficial
-     de AWS (github.com/amazon-connect/amazon-connect-streams) y
-     subilo al mismo bucket, junto a este HTML. No se usa CDN.
-     Si el archivo del repo tiene otro nombre, renombralo o cambiá
-     el src de abajo.
+     El archivo amazon-connect-streams.min.js está en la carpeta lib/,
+     junto a este HTML (versión 2.31.0 del paquete oficial de Amazon,
+     licencia Apache-2.0, ver lib/LICENSE.txt). Fuente oficial:
+     github.com/amazon-connect/amazon-connect-streams. No se usa CDN.
+     Si lo movés de lugar, cambiá el src de abajo.
      ============================================================ -->
-<script src="amazon-connect-streams.min.js"></script>
+<script src="lib/amazon-connect-streams.min.js"></script>
 
 <script>
   // ==========================================================
@@ -168,7 +168,7 @@
   function iniciarCCP() {
     // Si el .js no se subió o no se encontró, 'connect' no existe
     if (typeof connect === "undefined" || !connect.core) {
-      log("ERROR: no se cargó amazon-connect-streams.min.js. Verificá que esté subido junto al HTML y que el nombre coincida.");
+      log("ERROR: no se cargó lib/amazon-connect-streams.min.js. Verificá que esté en la carpeta lib/ junto al HTML y que el nombre coincida.");
       return;
     }
 
