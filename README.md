@@ -46,7 +46,7 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 4. Creé la instancia de Amazon Connect (usuarios almacenados en Connect, administrador, telefonía entrante y saliente; sin Customer Profiles ni Cases).
 5. Reemplacé `REEMPLAZAR-INSTANCIA` por el alias en el iframe y en `CCP_URL`.
 6. **Reproducción:** con el origen sin aprobar, la versión A muestra el bloqueo `frame-ancestors 'self'` / `X-Frame-Options` en la consola.
-7. **Solución:** agregué `http://localhost:8000` en *Orígenes aprobados* de la instancia. Con solo eso el CCP cargó autenticado tanto con el iframe directo (A) como con Streams (B). Streams (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`) es la integración recomendada porque maneja el login y la comunicación entre el CCP y el CRM.
+7. **Solución:** agregué `http://localhost:8000` en *Orígenes aprobados* de la instancia. Con solo eso el CCP cargó dentro del CRM tanto con el iframe directo (A) como con Streams (B), **con la sesión de Connect ya iniciada en el navegador** (el popup de Streams me llevó directo a un panel de Connect, sin pedirme usuario ni contraseña). Streams (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`) es la integración recomendada porque maneja el login y la comunicación entre el CCP y el CRM.
 
 ## Solución de problemas: tres errores de configuración que aparecieron
 
@@ -57,6 +57,11 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 | Origen sin aprobar | El bloqueo del ticket, con la URL correcta. |
 
 Los dos primeros imitan o tapan al tercero: si la URL está mal, aprobar el origen no arregla nada. Orden de diagnóstico: primero verificar que la URL tenga el alias real y termine en `/ccp-v2` (abrirla a mano en una pestaña); si anda sola pero no dentro del CRM, revisar el origen aprobado.
+
+## Alcance de la prueba
+
+- **Comprobado:** el CCP carga dentro del CRM una vez aprobado el origen (versiones A y B), y Streams abre el popup de login.
+- **No comprobado:** el login desde cero (la ventana pidiendo usuario y contraseña con la sesión cerrada) ni las funciones de Streams para reaccionar a llamadas (ficha emergente, aceptar o marcar desde el CRM). Streams las habilita, pero no las probé.
 
 ## Notas
 
