@@ -6,7 +6,7 @@ Portafolio de mis avances con **Amazon Connect**: cada carpeta es un ticket con 
 
 | Ticket | Problema | Solución | Carpeta |
 |---|---|---|---|
-| TK-001 | El CCP embebido en un CRM se bloquea (`X-Frame-Options` / `frame-ancestors`) | Aprobar el origen del CRM en Amazon Connect y usar Amazon Connect Streams | [`TK-001-ccp-embebido-crm/`](TK-001-ccp-embebido-crm/) |
+| TK-001 | El CCP embebido en un CRM se bloquea (`X-Frame-Options` / `frame-ancestors`) | Verificar la URL del CCP, aprobar el origen del CRM en Amazon Connect (según la documentación) y usar Amazon Connect Streams | [`TK-001-ccp-embebido-crm/`](TK-001-ccp-embebido-crm/) |
 
 ## Cómo está organizado cada ticket
 

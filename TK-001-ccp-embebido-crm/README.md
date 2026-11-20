@@ -12,7 +12,10 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 
 **Comportamiento esperado:** el CCP debe autenticar e integrarse dentro del iframe del CRM sin bloqueos de seguridad del navegador.
 
-**Causa raíz:** el dominio del CRM no está en la lista de **Orígenes aprobados** de la instancia de Amazon Connect, y un iframe directo no maneja el login ni la comunicación con el CCP.
+**Causas posibles** (dan el mismo síntoma y se pueden confundir):
+
+1. **Origen sin aprobar:** el dominio del CRM no está en la lista de **Orígenes aprobados** de la instancia de Amazon Connect. Es la causa que plantea el ticket y la que respalda la documentación de AWS (ver *Respaldo en la documentación oficial*). **No la reproduje** en mi prueba.
+2. **URL del CCP mal armada** (sin `/ccp-v2`, o con el alias sin reemplazar). Esta sí la **observé** en mi prueba y produjo el mismo bloqueo en la consola.
 
 ## Archivos
 
@@ -48,9 +51,11 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 4. Creé la instancia de Amazon Connect (usuarios almacenados en Connect, administrador, telefonía entrante y saliente; sin Customer Profiles ni Cases).
 5. Reemplacé `REEMPLAZAR-INSTANCIA` por el alias en el iframe y en `CCP_URL`.
 6. **Error observado:** la versión A mostró en la consola el bloqueo `frame-ancestors 'self'`. **Aclaración importante:** ese error lo vi con el iframe apuntando a la raíz del sitio de Connect (sin `/ccp-v2`), y no llegué a reproducirlo con la URL correcta y el origen sin aprobar, que es el caso exacto del ticket. Ver *Evidencia* y *Alcance de la prueba*.
-7. **Solución:** agregué `http://localhost:8000` en *Orígenes aprobados* de la instancia. Con solo eso el CCP cargó dentro del CRM tanto con el iframe directo (A) como con Streams (B), **con la sesión de Connect ya iniciada en el navegador** (el popup de Streams me llevó directo a un panel de Connect, sin pedirme usuario ni contraseña). Streams (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`) es la integración recomendada porque maneja el login y la comunicación entre el CCP y el CRM.
+7. **Resultado:** corregí la URL del CCP a `https://conecta-test.my.connect.aws/ccp-v2` y, con `http://localhost:8000` en *Orígenes aprobados* de la instancia, el CCP cargó dentro del CRM tanto con el iframe directo (A) como con Streams (B), **con la sesión de Connect ya iniciada en el navegador** (el popup de Streams me llevó directo a un panel de Connect, sin pedirme usuario ni contraseña). Como nunca probé la URL correcta sin el origen aprobado, **no puedo afirmar con mi prueba cuál de los dos arreglos fue el decisivo**: que aprobar el origen sea necesario lo respalda la documentación de AWS, no mi prueba. Streams (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`) es la integración recomendada porque maneja el login y la comunicación entre el CCP y el CRM.
 
-## Solución de problemas: tres errores de configuración que aparecieron
+## Solución de problemas: tres causas que dan síntomas parecidos
+
+Dos aparecieron en mi prueba y la tercera es la del ticket, que no reproduje.
 
 | Qué estaba mal | Cómo se veía |
 |---|---|
@@ -62,7 +67,8 @@ Los dos primeros imitan o tapan al tercero: si la URL está mal, aprobar el orig
 
 ## Alcance de la prueba
 
-- **Comprobado:** el CCP carga dentro del CRM una vez aprobado el origen (versiones A y B), y Streams abre el popup de login.
+- **Comprobado:** con la URL correcta y el origen aprobado, el CCP carga dentro del CRM (versiones A y B), y Streams abre el popup de login. También comprobé que una URL mal armada (sin `/ccp-v2` o con el alias sin reemplazar) produce errores que se parecen al del ticket.
+- **Lo que mi prueba no permite concluir:** que aprobar el origen sea imprescindible ni que sea lo que quita el bloqueo, porque no probé la URL correcta sin el origen aprobado. Eso lo respalda la documentación de AWS.
 - **No comprobado:** el bloqueo con la URL correcta (`/ccp-v2`) y el origen sin aprobar; el login desde cero (la ventana pidiendo usuario y contraseña con la sesión cerrada); ni las funciones de Streams para reaccionar a llamadas (ficha emergente, aceptar o marcar desde el CRM). Streams las habilita, pero no las probé.
 
 ## Evidencia de la prueba (texto copiado tal cual de mi consola y de la herramienta)
