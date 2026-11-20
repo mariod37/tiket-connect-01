@@ -65,9 +65,29 @@ Los dos primeros imitan o tapan al tercero: si la URL está mal, aprobar el orig
 - **Comprobado:** el CCP carga dentro del CRM una vez aprobado el origen (versiones A y B), y Streams abre el popup de login.
 - **No comprobado:** el login desde cero (la ventana pidiendo usuario y contraseña con la sesión cerrada) ni las funciones de Streams para reaccionar a llamadas (ficha emergente, aceptar o marcar desde el CRM). Streams las habilita, pero no las probé.
 
+## Respaldo en la documentación oficial
+
+Cada parte de la solución, con la fuente que la respalda. Verifiqué las fuentes el 20/11/2026.
+
+| Parte de la solución | Qué dice la fuente | Fuente |
+|---|---|---|
+| **Aprobar el origen del CRM** | Todos los dominios que embeben el CCP de una instancia deben estar permitidos de forma explícita. Pasos: instancia → *Approved origins* → *Add origin* → escribir la URL → *Add*. | [Amazon Connect – Use an allowlist for integrated applications](https://docs.aws.amazon.com/connect/latest/adminguide/app-integration.html) |
+| **La URL del CCP debe ser `/ccp-v2`** | Con Streams, la URL de `initCCP()` se actualiza de `/ccp#` a `/ccp-v2`, y el dominio se agrega a la lista de orígenes aprobados. | [Upgrade your CCP when using the Streams API](https://docs.aws.amazon.com/connect/latest/adminguide/upgrade-ccp-streams-api.html) |
+| **Streams y la lista de orígenes** | Permitir las páginas es el primer paso para usar Streams. Cada entrada identifica protocolo, host y puerto (por eso se agrega `http://localhost:8000` con su puerto). | [README de Amazon Connect Streams](https://github.com/amazon-connect/amazon-connect-streams), sección *Allowlisting* |
+| **Opciones de `initCCP`** | `ccpUrl` es obligatoria. `loginPopup` es opcional y por defecto está activa. `allowFramedSoftphone` es opcional y por defecto está en `false`: sin ella el softphone (micrófono y parlantes) no puede estar dentro de un iframe. | [README de Streams](https://github.com/amazon-connect/amazon-connect-streams), sección `connect.core.initCCP()` |
+| **El aviso `ACK_TIMEOUT` en la consola** | El evento `ACK_TIMEOUT` se sigue disparando en el login inicial. Por eso apareció en mi prueba antes de abrirse el popup, y no indica un fallo por sí solo. | [README de Streams](https://github.com/amazon-connect/amazon-connect-streams), historial de versiones (2.18.7) |
+| **`X-Frame-Options` vs `frame-ancestors`** | `SAMEORIGIN` permite embeber solo si todos los marcos ancestros tienen el mismo origen. MDN recomienda `frame-ancestors` por tener más opciones y muestra `frame-ancestors 'self'` como el equivalente de `SAMEORIGIN`. | [MDN – X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options) y [MDN – CSP frame-ancestors](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors) |
+| **Qué gana si están los dos encabezados** | El navegador respeta `frame-ancestors` e ignora `X-Frame-Options`. MDN no lo dice de forma explícita: lo respalda la implementación de Chromium. | [Chromium – CSP 'frame-ancestors' should override 'x-frame-options'](https://codereview.chromium.org/1326823003) |
+
+### Diferencias entre lo documentado y lo que observé
+
+- **HTTPS:** el README de Streams dice que los dominios permitidos deben ser HTTPS. En mi prueba, la consola de Connect aceptó `http://localhost:8000` y el CCP cargó. Esa excepción para `localhost` **no la encontré documentada**: es una observación de mi prueba. En producción hay que usar HTTPS.
+- **Nombre del menú:** la guía de AWS lo llama *Approved origins* y el README de Streams, *Application integration*. La ubicación varía según la versión de la consola.
+- **Mensaje de error:** el ticket cita `X-Frame-Options: sameorigin` y mi navegador mostró `frame-ancestors 'self'`. Que sean la misma regla en versión vieja y moderna está respaldado por MDN y Chromium (filas anteriores). Que Amazon Connect envíe exactamente ese encabezado no lo pude verificar, porque la instancia ya estaba borrada.
+
 ## Notas
 
 - En producción el origen aprobado sería el dominio **HTTPS** del CRM (por ejemplo S3 + CloudFront), no `localhost`.
-- El error de la consola puede verse como `X-Frame-Options: sameorigin` (el del ticket) o como `frame-ancestors 'self'` (navegadores actuales). `SAMEORIGIN` equivale a `frame-ancestors 'self'`, y los navegadores modernos priorizan la CSP. Referencias: MDN (CSP `frame-ancestors` y `X-Frame-Options`).
+- El error de la consola puede verse como `X-Frame-Options: sameorigin` (el del ticket) o como `frame-ancestors 'self'` (navegadores actuales). Ver la sección anterior para las fuentes.
 - No subas a este repo datos reales de tu instancia ni credenciales.
 - Al terminar las pruebas, eliminá la instancia de Connect si no la vas a usar, para evitar costos.
