@@ -46,11 +46,21 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 4. Creé la instancia de Amazon Connect (usuarios almacenados en Connect, administrador, telefonía entrante y saliente; sin Customer Profiles ni Cases).
 5. Reemplacé `REEMPLAZAR-INSTANCIA` por el alias en el iframe y en `CCP_URL`.
 6. **Reproducción:** con el origen sin aprobar, la versión A muestra el bloqueo `frame-ancestors 'self'` / `X-Frame-Options` en la consola.
-7. **Solución:** agregué `http://localhost:8000` en *Orígenes aprobados* de la instancia y usé la versión B (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`). El CCP cargó autenticado dentro del panel.
+7. **Solución:** agregué `http://localhost:8000` en *Orígenes aprobados* de la instancia. Con solo eso el CCP cargó autenticado tanto con el iframe directo (A) como con Streams (B). Streams (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`) es la integración recomendada porque maneja el login y la comunicación entre el CCP y el CRM.
+
+## Solución de problemas: tres errores de configuración que aparecieron
+
+| Qué estaba mal | Cómo se veía |
+|---|---|
+| Alias sin reemplazar (`REEMPLAZAR-INSTANCIA` en `CCP_URL`) | El popup de login mostraba `DNS_PROBE_FINISHED_NXDOMAIN`. |
+| Ruta incompleta (URL sin `/ccp-v2`) | El iframe iba a la página principal de Connect (`/home`), con el bloqueo `frame-ancestors 'self'`. Se parece al error del ticket, pero la causa no es el permiso. |
+| Origen sin aprobar | El bloqueo del ticket, con la URL correcta. |
+
+Los dos primeros imitan o tapan al tercero: si la URL está mal, aprobar el origen no arregla nada. Orden de diagnóstico: primero verificar que la URL tenga el alias real y termine en `/ccp-v2` (abrirla a mano en una pestaña); si anda sola pero no dentro del CRM, revisar el origen aprobado.
 
 ## Notas
 
 - En producción el origen aprobado sería el dominio **HTTPS** del CRM (por ejemplo S3 + CloudFront), no `localhost`.
-- Un error de configuración que me costó tiempo: dejar la URL sin `/ccp-v2`. Sin esa ruta el iframe va a la página principal de Connect, que nunca se puede embeber.
+- El error de la consola puede verse como `X-Frame-Options: sameorigin` (el del ticket) o como `frame-ancestors 'self'` (navegadores actuales). `SAMEORIGIN` equivale a `frame-ancestors 'self'`, y los navegadores modernos priorizan la CSP. Referencias: MDN (CSP `frame-ancestors` y `X-Frame-Options`).
 - No subas a este repo datos reales de tu instancia ni credenciales.
 - Al terminar las pruebas, eliminá la instancia de Connect si no la vas a usar, para evitar costos.
