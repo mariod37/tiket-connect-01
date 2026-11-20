@@ -84,6 +84,11 @@ No conservé capturas de pantalla de la instancia (se eliminó al terminar). Est
    ```
    Framing 'https://conecta-test.my.connect.aws/' violates the following Content Security Policy directive: "frame-ancestors 'self'". The request has been blocked.
    ```
+   Captura de la consola con este tipo de error (`capturas/captura-error.jpg`):
+
+   ![Consola de Chrome con el error frame-ancestors 'self'](capturas/captura-error.jpg)
+
+   La captura muestra el síntoma (12 repeticiones del bloqueo). **No muestra** qué URL se bloqueó (Chrome la reemplaza por `<URL>`), ni cuál de las dos versiones lo produjo, ni si el origen estaba aprobado en ese momento. Por eso la causa se apoya en el resto de la evidencia y en la documentación, y no solo en esta imagen.
 3. **Consola, versión B (misma URL incorrecta) con los avisos de Streams:**
    ```
    [WARN] [null]: ACK_TIMEOUT occurred. Attempting to authenticate.
