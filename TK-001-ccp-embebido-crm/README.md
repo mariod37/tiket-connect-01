@@ -14,7 +14,7 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 
 **Causas posibles** (dan el mismo síntoma y se pueden confundir):
 
-1. **Origen sin aprobar:** el dominio del CRM no está en la lista de **Orígenes aprobados** de la instancia de Amazon Connect. Es la causa que plantea el ticket y la que respalda la documentación de AWS (ver *Respaldo en la documentación oficial*). **La reproduje al final de mi prueba:** con la URL ya corregida, quité el origen de la lista y el error volvió a aparecer (ver *Evidencia*, punto 8; sin captura).
+1. **Origen sin aprobar:** el dominio del CRM no está en la lista de **Orígenes aprobados** de la instancia de Amazon Connect. Es la causa que plantea el ticket y la que respalda la documentación de AWS (ver *Respaldo en la documentación oficial*). **La reproduje con captura** en una segunda instancia: URL correcta (`/ccp-v2`) y origen sin aprobar → el mismo bloqueo (ver *Evidencia, segunda prueba*).
 2. **URL del CCP mal armada** (sin `/ccp-v2`, o con el alias sin reemplazar). Esta sí la **observé** en mi prueba y produjo el mismo bloqueo en la consola.
 
 ## Archivos
@@ -24,7 +24,11 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 | `crm.html` | CRM de prueba autocontenido (HTML + CSS + JS). Versión A: iframe directo (reproduce el error). Versión B: `amazon-connect-streams` con `initCCP` (solución). Incluye botón de alternancia y cuadro de estado. |
 | `lib/amazon-connect-streams.min.js` | Librería oficial Amazon Connect Streams (v2.31.0, licencia Apache-2.0). |
 | `lib/LICENSE.txt` | Licencia de la librería Streams. |
-| `capturas/captura-error.jpg` | Captura del error del ticket. |
+| `capturas/captura-error.jpg` | Captura de la consola con el error (primera prueba). |
+| `capturas/error-origen-sin-aprobar.jpg` | Error con la URL correcta y el origen sin aprobar (segunda prueba). |
+| `capturas/origenes-aprobados.jpg` | Lista de *Orígenes aprobados* con `http://localhost:8000` (ID de cuenta tapado). |
+| `capturas/version-a-iframe-con-origen.jpg` | Versión A (iframe directo) cargando con el origen aprobado. |
+| `capturas/version-b-streams-con-origen.jpg` | Versión B (Streams) cargando con el origen aprobado. |
 
 ## Cómo usarlo
 
@@ -50,30 +54,31 @@ En navegadores actuales el mismo bloqueo aparece como `Framing '...' violates th
 3. Levanté el servidor local en el puerto 8000.
 4. Creé la instancia de Amazon Connect (usuarios almacenados en Connect, administrador, telefonía entrante y saliente; sin Customer Profiles ni Cases).
 5. Reemplacé `REEMPLAZAR-INSTANCIA` por el alias en el iframe y en `CCP_URL`.
-6. **Error observado:** la versión A mostró en la consola el bloqueo `frame-ancestors 'self'`. **Aclaración importante:** el primer mensaje que copié lo vi con el iframe apuntando a la raíz del sitio de Connect (sin `/ccp-v2`), es decir, por una URL mal armada. El caso exacto del ticket (URL correcta y origen sin aprobar) lo reproduje más tarde, al quitar el origen de la lista (paso 7 y *Evidencia*, punto 8).
+6. **Error observado:** la versión A mostró en la consola el bloqueo `frame-ancestors 'self'`. **Aclaración importante:** el primer mensaje que copié lo vi con el iframe apuntando a la raíz del sitio de Connect (sin `/ccp-v2`), por una URL mal armada. Pero en la segunda prueba vi que **la raíz en el mensaje no prueba que la URL esté mal**: con la URL correcta y el origen sin aprobar, Chrome también informa `https://<alias>.my.connect.aws/` (muestra la URL final tras la redirección). El caso exacto del ticket quedó capturado en la segunda prueba (ver *Evidencia, segunda prueba*).
 7. **Resultado:** corregí la URL del CCP a `https://conecta-test.my.connect.aws/ccp-v2` y, con `http://localhost:8000` en *Orígenes aprobados* de la instancia, el CCP cargó dentro del CRM tanto con el iframe directo (A) como con Streams (B), **con la sesión de Connect ya iniciada en el navegador** (el popup de Streams me llevó directo a un panel de Connect, sin pedirme usuario ni contraseña). Después hice la prueba de contraste: con la URL correcta, **quité `http://localhost:8000` de la lista y el error volvió a aparecer**, de modo que con la URL bien armada el origen aprobado es lo que decide si carga o no (ver *Evidencia*, punto 8). Streams (`connect.core.initCCP` con `loginPopup: true` y `softphone.allowFramedSoftphone: true`) es la integración recomendada porque maneja el login y la comunicación entre el CCP y el CRM.
 
 ## Solución de problemas: tres causas que dan síntomas parecidos
 
-Las tres aparecieron en mi prueba. La tercera, que es la del ticket, la reproduje al final, sin captura.
+Las tres aparecieron en mi prueba. La tercera, que es la del ticket, la reproduje en la segunda prueba, con captura.
 
 | Qué estaba mal | Cómo se veía |
 |---|---|
 | Alias sin reemplazar (`REEMPLAZAR-INSTANCIA` en `CCP_URL`) | El popup de login mostraba `DNS_PROBE_FINISHED_NXDOMAIN`. |
 | Ruta incompleta (URL sin `/ccp-v2`) | El iframe iba a la página principal de Connect (`/home`), con el bloqueo `frame-ancestors 'self'`. Se parece al error del ticket, pero la causa no es el permiso. |
-| Origen sin aprobar | Es la causa que describe el ticket y la que respalda la documentación de AWS (ver más abajo). La reproduje quitando el origen de la lista con la URL ya corregida (sin captura). |
+| Origen sin aprobar | Es la causa que describe el ticket y la que respalda la documentación de AWS (ver más abajo). La reproduje con la URL correcta y el origen sin aprobar (captura en *Evidencia, segunda prueba*). El mensaje nombra la raíz del sitio aunque la URL sea correcta. |
+| Origen escrito con ruta al aprobarlo (por ejemplo `http://localhost:8000/crm.html`) | La consola de Connect responde *"El formato de dominio no es válido"*. Un origen es solo esquema + host + puerto: `http://localhost:8000`. |
 
 Los dos primeros imitan o tapan al tercero: si la URL está mal, aprobar el origen no arregla nada. Orden de diagnóstico: primero verificar que la URL tenga el alias real y termine en `/ccp-v2` (abrirla a mano en una pestaña); si anda sola pero no dentro del CRM, revisar el origen aprobado.
 
 ## Alcance de la prueba
 
 - **Comprobado:** con la URL correcta y el origen aprobado, el CCP carga dentro del CRM (versiones A y B), y Streams abre el popup de login. También comprobé que una URL mal armada (sin `/ccp-v2` o con el alias sin reemplazar) produce errores que se parecen al del ticket.
-- **Contraste con el origen:** con la URL correcta, el CCP cargó con el origen aprobado y el error volvió al quitarlo. Lo constaté yo en la prueba, pero no conservé captura ni el texto exacto del mensaje.
+- **Contraste con el origen:** primera prueba: el CCP cargó con el origen aprobado y el error volvió al quitarlo (sin captura). Segunda prueba (otra instancia): con URL correcta y origen sin aprobar, el error quedó capturado; después aprobé `http://localhost:8000` y cargaron A y B, también capturado. **No repetí la vuelta (quitar el origen otra vez) en la segunda instancia.**
 - **No comprobado:** que Amazon Connect envíe exactamente el encabezado `X-Frame-Options` (no pude ver los encabezados de respuesta); el login desde cero (la ventana pidiendo usuario y contraseña con la sesión cerrada); ni las funciones de Streams para reaccionar a llamadas (ficha emergente, aceptar o marcar desde el CRM). Streams las habilita, pero no las probé.
 
 ## Evidencia de la prueba (texto copiado tal cual de mi consola y de la herramienta)
 
-No conservé capturas de pantalla de la instancia (se eliminó al terminar). Esto es el texto que copié durante la prueba, en el orden en que ocurrió:
+Primera prueba (instancia `conecta-test`, ya eliminada): no conservé capturas de la instancia, solo el texto que copié, en el orden en que ocurrió. La segunda prueba, con capturas, está al final de esta sección.
 
 1. **Cuadro de estado, primera carga de la versión B (el archivo de Streams todavía no se encontraba):**
    ```
@@ -123,11 +128,32 @@ Cada parte de la solución, con la fuente que la respalda. Verifiqué las fuente
 | **`X-Frame-Options` vs `frame-ancestors`** | `SAMEORIGIN` permite embeber solo si todos los marcos ancestros tienen el mismo origen. MDN recomienda `frame-ancestors` por tener más opciones y muestra `frame-ancestors 'self'` como el equivalente de `SAMEORIGIN`. | [MDN – X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options) y [MDN – CSP frame-ancestors](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors) |
 | **Qué gana si están los dos encabezados** | El navegador respeta `frame-ancestors` e ignora `X-Frame-Options`. MDN no lo dice de forma explícita: lo respalda la implementación de Chromium. | [Chromium – CSP 'frame-ancestors' should override 'x-frame-options'](https://codereview.chromium.org/1326823003) |
 
+### Evidencia, segunda prueba (instancia nueva, con capturas)
+
+Repetí la prueba en otra instancia (`instacia-test`, URL `https://instacia-test.my.connect.aws/ccp-v2`, bien armada) para tener capturas del caso del ticket.
+
+1. **Origen sin aprobar:** el CRM en `localhost:8000/crm.html` y la consola con el bloqueo. El mensaje nombra `https://instacia-test.my.connect.aws/` (la raíz) aunque la URL configurada incluye `/ccp-v2`:
+
+   ![Error con URL correcta y origen sin aprobar](capturas/error-origen-sin-aprobar.jpg)
+
+   Límites: DevTools tapa el panel del CRM, así que no se ve el iframe en blanco. No capturé los encabezados de la respuesta, por lo que **sigue sin verificarse que Connect envíe `X-Frame-Options`**; lo que muestra Chrome es el bloqueo por `frame-ancestors 'self'`.
+2. **Origen aprobado:** *Orígenes aprobados* de la instancia con `http://localhost:8000` (sin ruta). Tapé el ID de cuenta.
+
+   ![Lista de orígenes aprobados](capturas/origenes-aprobados.jpg)
+3. **Versión A (iframe directo) con el origen aprobado:** el CCP carga dentro del CRM. El aviso *Camera is not accessible* es del navegador (permiso de cámara) y no tiene que ver con el embebido.
+
+   ![Versión A cargando](capturas/version-a-iframe-con-origen.jpg)
+4. **Versión B (Streams) con el origen aprobado:** el CCP carga dentro del CRM.
+
+   ![Versión B cargando](capturas/version-b-streams-con-origen.jpg)
+
+   Límites de 3 y 4: la sesión de Connect ya estaba abierta en el navegador (no probé el login desde cero) y no se probaron llamadas ni eventos de Streams; solo se ve que el panel carga.
+
 ### Diferencias entre lo documentado y lo que observé
 
 - **HTTPS:** el README de Streams dice que los dominios permitidos deben ser HTTPS. En mi prueba, la consola de Connect aceptó `http://localhost:8000` y el CCP cargó. Esa excepción para `localhost` **no la encontré documentada**: es una observación de mi prueba. En producción hay que usar HTTPS.
 - **Nombre del menú:** la guía de AWS lo llama *Approved origins* y el README de Streams, *Application integration*. La ubicación varía según la versión de la consola.
-- **Mensaje de error:** el ticket cita `X-Frame-Options: sameorigin` y mi navegador mostró `frame-ancestors 'self'`. Que sean la misma regla en versión vieja y moderna está respaldado por MDN y Chromium (filas anteriores). Que Amazon Connect envíe exactamente ese encabezado no lo pude verificar, porque la instancia ya estaba borrada.
+- **Mensaje de error:** el ticket cita `X-Frame-Options: sameorigin` y mi navegador mostró `frame-ancestors 'self'`. Que sean la misma regla en versión vieja y moderna está respaldado por MDN y Chromium (filas anteriores). Que Amazon Connect envíe exactamente ese encabezado no lo verifiqué: no capturé los encabezados de la respuesta.
 
 ## Notas
 
